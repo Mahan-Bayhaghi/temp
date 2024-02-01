@@ -9,7 +9,7 @@
 #define NUM_IMAGES_PER_FILE 10000
 #define IMAGE_DIMENSION 32
 
-#define NUM_PROCESSES 2
+#define NUM_PROCESSES 1
 
 typedef struct {
     unsigned char r, g, b;
@@ -53,7 +53,7 @@ void child_process(cifar10* data , int* stoppage , int classes, int *c_to_python
     if (pid==0){
         // grandchild process
         close(c_to_python_pipe[0]); // close read end of pipe
-        for (int i=0; i<NUM_IMAGES_PER_FILE, i++){
+        for (int i=0; i<NUM_IMAGES_PER_FILE/100; i++){
             int sum = 0;
             for (int j=0; j<IMAGE_DIMENSION; j++){
                 for (int k=0; k<IMAGE_DIMENSION; k++){
@@ -62,20 +62,23 @@ void child_process(cifar10* data , int* stoppage , int classes, int *c_to_python
                     sum += data[i].image[j][k].b;
                 }
             }
+	    printf("calculated %d and trying to write it to pipe\n",sum);
             write(c_to_python_pipe[1],&sum, sizeof(sum));
+	    printf("%d \t ------> wrote\n" , i);
         }
         close(c_to_python_pipe[1]); // close write end of pipe
         exit(0);
     } else {
         // child process
-        close(c_to_python_pipe[1]); // close write end of pipe
-
-        // Create a unique Python script for each child process
-        char script_filename[20];
-        sprintf(script_filename, "script%d.py", classes);
-        execlp("python3", "python3", script_filename, NULL);
-        perror("execlp failed");
-        exit(1);
+	int buffer[4];
+	while (read(c_to_python_pipe[0], buffer, sizeof(int)) != 0){
+		printf("recieved %d from parent \n",buffer[0]);
+		sleep(0.1);
+	}	
+	printf("done recieving \n");
+        close(c_to_python_pipe[0]);
+	close(c_to_python_pipe[1]);
+}
 }
 
 int main() {
@@ -125,7 +128,7 @@ int main() {
 		    exit(0);
 	    }
         else {
-            close(c_to_python_pipe[1]);
+            //close(c_to_python_pipe[1]);
         }
     }
 
@@ -135,6 +138,7 @@ int main() {
         	perror("shmdt");
         	return 1;
    	 }
-  //  }
     return 0;
-}
+   }
+
+
