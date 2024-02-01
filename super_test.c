@@ -56,6 +56,7 @@ void child_process(cifar10* data , int* stoppage , int classes){
 	int class2 = class1 + 1;
     	printf("I'm child %d and I have access to data\n", getpid());
 
+	// TODO: this process should only access datas with lable class1 or class2. simply implement this by iterating on data and extracting
     char weight_send_fifo[20];
     sprintf(weight_send_fifo, "/tmp/wsfifo%d",classes);
     mkfifo(weight_send_fifo,0777);
