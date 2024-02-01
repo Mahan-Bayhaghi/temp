@@ -14,7 +14,7 @@
 #define NUM_IMAGES_PER_FILE 10000
 #define IMAGE_DIMENSION 32
 
-#define NUM_PROCESSES 2
+#define NUM_PROCESSES 1
 
 #define MAX 10 
 
@@ -40,7 +40,6 @@ void read_cifar10(char *filename, cifar10 *data) {
         printf("Error: Unable to open file %s\n", filename);
         return;
     }
-
     for (int i = 0; i < NUM_IMAGES_PER_FILE; i++) {
         fread(&data[i].label, sizeof(unsigned char), 1, file);
         for (int j = 0; j < IMAGE_DIMENSION; j++) {
@@ -49,30 +48,57 @@ void read_cifar10(char *filename, cifar10 *data) {
             }
         }
     }
-
     fclose(file);
 }
 
-
-void child_process(cifar10* data , int* stoppage , int classes, int *c_to_python_pipe){
+void child_process(cifar10* data , int* stoppage , int classes){
 	int class1 = classes*2;
 	int class2 = class1 + 1;
-    printf("I child %d and I have access to data\n", getpid());
+    	printf("I'm child %d and I have access to data\n", getpid());
 
-    char* fifo = "/tmp/myfifo";
-    mkfifo(fifo,0666);
-    printf("fifo made\n");
+	// TODO: this process should only access datas with lable class1 or class2. simply implement this by iterating on data and extracting
+    char weight_send_fifo[20];
+    sprintf(weight_send_fifo, "/tmp/wsfifo%d",classes);
+    mkfifo(weight_send_fifo,0777);
+    printf("weight_send_fifo is made");
 
-    int fd = open(fifo, O_WRONLY);
+    char weight_recieve_fifo[20];
+    sprintf(weight_recieve_fifo, "/tmp/wrfifo%d",classes);
+    mkfifo(weight_recieve_fifo,0777);
+    printf("weight_recieve_fifo is made");
+
+    char image_send_fifo[20];
+    sprintf(image_send_fifo, "/tmp/isfifo%d",classes);
+    mkfifo(image_send_fifo,0777);
+    printf("image_send_fifo is made");
+
+
+    int fd1 = open(weight_send_fifo, O_WRONLY);
     if (fd == -1) {
-        perror("Error opening the FIFO for writing");
+        perror("Error opening the FIFO for writing weight");
+        exit(EXIT_FAILURE);
+    }
+    // TODO: send weights
+
+    int fd2 = open(image_send_fifo, O_WRONLY);
+    if (fd == -1){
+	perror("Error opening the FIFO for writing images");
         exit(EXIT_FAILURE);
     }
     // Send a sample CIFAR-10 instance to the Python script
-    write(fd, data[0].image, sizeof(pixel) * IMAGE_DIMENSION * IMAGE_DIMENSION);
-    write(fd, &(data[0].label), sizeof(unsigned char));
+    //write(fd, data[0].image, sizeof(pixel) * IMAGE_DIMENSION * IMAGE_DIMENSION);
+    //write(fd, &(data[0].label), sizeof(unsigned char));
     // Close the named pipe
-    close(fd);
+    // TODO: send single or multiple images ?
+
+    int fd3 = open(weight_recieve_fifo, O_WRONLY);
+    if (fd == -1){
+	perror("Error opening the FIFO for recieving updated weights");
+        exit(EXIT_FAILURE);
+    }
+    // TODO: recieve data and aggregate weights. also check if we should stop or not 
+
+
 }
 
 int main() {
@@ -97,7 +123,7 @@ int main() {
         perror("data is not shared");
         return 1;
     }
-    printf("initializing stoppage condition to 0");
+    printf("initializing stoppage condition to 0\n");
     *stoppage = 0;
     printf("starting to read batch 1...\n");
     read_cifar10("data_batch_1.bin", data);
@@ -119,8 +145,6 @@ int main() {
 
         }
     }
-
-    // parent 
     
     if (shmdt(data) == -1) {
         perror("shmdt");
