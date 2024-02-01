@@ -9,6 +9,8 @@
 #define NUM_IMAGES_PER_FILE 10000
 #define IMAGE_DIMENSION 32
 
+#define NUM_PROCESSES 2
+
 typedef struct {
     unsigned char r, g, b;
 } pixel;
@@ -37,7 +39,7 @@ void read_cifar10(char *filename, cifar10 *data) {
     fclose(file);
 }
 
-void child_process(cifar10* data , int* stoppage , int classes){
+void child_process(cifar10* data , int* stoppage , int classes, int *c_to_python_pipe){
 	int class1 = classes*2;
 	int class2 = class1 + 1;
        	// Child process
@@ -46,12 +48,6 @@ void child_process(cifar10* data , int* stoppage , int classes){
     printf("data[0].label = %d\n",data[0].label);
     printf("believe me now ? \n");
     printf("sizeof each cifar10 object is %ld\n",sizeof(cifar10));
-
-    int c_to_python_pipe[2];
-    if (pipe(c_to_python_pipe)== -1){
-        perror("couldn't make pipe");
-        exit(1);
-    }
 
     pid_t pid = fork();
     if (pid==0){
@@ -72,15 +68,14 @@ void child_process(cifar10* data , int* stoppage , int classes){
         exit(0);
     } else {
         // child process
-
-        // TODO: Write data to pipefd[1] and read results from pipefd[0]
-
         close(c_to_python_pipe[1]); // close write end of pipe
-        // close(c_to_python_pipe[0]);
-    }
-//	while (!(*stoppage)){
-		// TODO: Send weights and data to a python process and get back results
-//	}
+
+        // Create a unique Python script for each child process
+        char script_filename[20];
+        sprintf(script_filename, "script%d.py", classes);
+        execlp("python3", "python3", script_filename, NULL);
+        perror("execlp failed");
+        exit(1);
 }
 
 int main() {
@@ -112,7 +107,13 @@ int main() {
     printf("batch 1 reading done\n");
     printf("sizeof(data) = %ld MB\n", sizeof(cifar10)*NUM_IMAGES_PER_FILE / (1024*1024));
     
-    for (int kid=0; kid<5; kid++){
+    for (int kid=0; kid<NUM_PROCESSES; kid++){
+        int c_to_python_pipe[2];
+        if (pipe(c_to_python_pipe)== -1){
+            perror("couldn't make pipe");
+            exit(1);
+        }
+
 	    pid_t pid = fork();
 	    if (pid < 0){
 		    perror("fork failed");
@@ -120,9 +121,12 @@ int main() {
 	    }
 	    if (pid==0){
 		    // child process
-		    child_process(data,stoppage,kid);
+		    child_process(data,stoppage,kid,c_to_python_pipe);
 		    exit(0);
 	    }
+        else {
+            close(c_to_python_pipe[1]);
+        }
     }
 
     // parent 
