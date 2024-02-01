@@ -52,7 +52,7 @@ typedef struct {
 // Define the total number of weights
 #define TOTAL_WEIGHTS (DIM1 * DIM2 * DIM3 * DIM4 + DIM5 + DIM6 * DIM7 * DIM8 * DIM9 + DIM10 + DIM11 * DIM12 * DIM13 * DIM14 + DIM15 + DIM16 * DIM17 + DIM18)
 typedef struct {
-    float data[TOTAL_WEIGHTS];
+    float weight[TOTAL_WEIGHTS];
 } Weights;
 
 void read_cifar10(char *filename, cifar10 *data) {
@@ -160,7 +160,7 @@ void child_process(cifar10* data, Weights* global_weight, int* stoppage, int cla
 
     // Main training loop of each child process
     while (*stoppage == 0 && filtered_count > 0) {
-        // TODO: Send weights (implementation depends on your specific requirements)
+        // Send weights
         write(fd1, global_weight, sizeof(Weights));
 
         // Send 16 instances of CIFAR-10 to the Python script
@@ -185,7 +185,7 @@ void child_process(cifar10* data, Weights* global_weight, int* stoppage, int cla
     close(fd1);
     close(fd2);
     close(fd3);
-    
+
     // Free allocated memory for filtered_data
     free(filtered_data);
 }
