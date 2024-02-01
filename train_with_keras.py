@@ -17,7 +17,7 @@ def read_cifar(file, n_images):
     return images, labels
 
 def read_weights(file):
-    weights = None
+    weights = []
 
     # TODO: write a function to convert byte string to numpy arrays
     with open(file, "rb") as pipe:
@@ -32,7 +32,6 @@ def write_weights(file, weights):
         pass # use pipe.write()
 
 
-
 model = models.Sequential()
 model.add(layers.Conv2D(32, (3, 3), activation='relu', input_shape=(32, 32, 3)))
 model.add(layers.MaxPooling2D((2, 2)))
@@ -41,14 +40,14 @@ model.add(layers.MaxPooling2D((2, 2)))
 model.add(layers.Conv2D(64, (3, 3), activation='relu'))
 model.add(layers.Flatten())
 model.add(layers.Dense(64, activation='relu'))
-model.add(layers.Dense(10))
+model.add(layers.Dense(10, activation='softmax'))
 
 while (True):
     weights = read_weights(weights_recieve_pipe) 
 
     model.set_weights(weights)
 
-    images, labels = read_cifar(images_recieve_pipe)
+    images, labels = read_cifar(images_recieve_pipe, n_images=16)
 
     model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
 
