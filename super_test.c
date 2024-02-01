@@ -60,22 +60,19 @@ void child_process(cifar10* data , int* stoppage , int classes, int *c_to_python
 	int class2 = class1 + 1;
     printf("I child %d and I have access to data\n", getpid());
 
-    pid_t pid = fork();
-    if (pid==0){
-        // grandchild process
-        // TODO: run the python program that is waiting to get data from child
-        char c_to_python_fifo[20];
-        sprintf(c_to_python_fifo, "/fifos/cpfifo%d", classes);
-        printf("made fifo %s correctly\n" , c_to_python_fifo);
+    char* fifo = "/tmp/myfifo";
+    mkfifo(fifo,0666);
 
-        mkfifo(c_to_python_fifo,0666);
-
-    } else if (pid > 0) {
-        // child process
-        // TODO: loop until stoppage becomes 1, in each loop, send weights alongside on instance from data to a python program named script.py
-        // wait until python program sends back result (updated weights)
-        // update weights
+    int fd = open(fifo, O_WRONLY);
+    if (fd == -1) {
+        perror("Error opening the FIFO for writing");
+        exit(EXIT_FAILURE);
     }
+    // Send a sample CIFAR-10 instance to the Python script
+    write(fd, data[0].image, sizeof(pixel) * IMAGE_DIMENSION * IMAGE_DIMENSION);
+    write(fd, &(data[0].label), sizeof(unsigned char));
+    // Close the named pipe
+    close(fd);
 }
 
 int main() {
@@ -119,7 +116,7 @@ int main() {
 		    exit(0);
 	    }
         else {  // parent process
-            
+
         }
     }
 
