@@ -54,7 +54,6 @@ void read_cifar10(char *filename, cifar10 *data) {
 }
 
 
-
 void child_process(cifar10* data , int* stoppage , int classes, int *c_to_python_pipe){
 	int class1 = classes*2;
 	int class2 = class1 + 1;
@@ -62,6 +61,7 @@ void child_process(cifar10* data , int* stoppage , int classes, int *c_to_python
 
     char* fifo = "/tmp/myfifo";
     mkfifo(fifo,0666);
+    printf("fifo made\n");
 
     int fd = open(fifo, O_WRONLY);
     if (fd == -1) {
