@@ -1,17 +1,37 @@
 from keras import layers, models
 import numpy as np
+import sys
 
-def read_cifar(file):
-    images = np.zeros((16,32,32,3), dtype=int)
-    labels = np.zeros(16, dtype=int)
-    with open(file, 'rb') as f:
-        for i in range(16):
-            labels[i] = int.from_bytes(f.read1(1), byteorder='big')
+images_recieve_pipe, weights_recieve_pipe, weights_send_pipe = sys.argv[1], sys.argv[2], sys.argv[3]
+
+def read_cifar(file, n_images):
+    images = np.zeros((n_images,32,32,3), dtype=int)
+    labels = np.zeros(n_images, dtype=int)
+    with open(file, 'rb') as pipe:
+        for i in range(n_images):
+            labels[i] = int.from_bytes(pipe.read1(1), byteorder='big')
             for j in range(3):
                 for m in range(32):
                     for n in range(32):
-                        images[i,m,n,j] = int.from_bytes(f.read1(1), byteorder='big')
+                        images[i, m, n, j] = int.from_bytes(pipe.read1(1), byteorder='big')
     return images, labels
+
+def read_weights(file):
+    weights = None
+
+    # TODO: write a function to convert byte string to numpy arrays
+    with open(file, "rb") as pipe:
+        pass # use pipe.read()
+
+    return weights
+
+def write_weights(file, weights):
+
+    # TODO: write a function to convert numpy arrays in `weights` into byte data and write it in the file
+    with open(file, "wb") as pipe:
+        pass # use pipe.write()
+
+
 
 model = models.Sequential()
 model.add(layers.Conv2D(32, (3, 3), activation='relu', input_shape=(32, 32, 3)))
@@ -23,25 +43,17 @@ model.add(layers.Flatten())
 model.add(layers.Dense(64, activation='relu'))
 model.add(layers.Dense(10))
 
-# TODO: get weight from pipe and store in variable `weights`
-weights = None
-model.set_weights(weights)
+while (True):
+    weights = read_weights(weights_recieve_pipe) 
 
-# TODO: get images from pipe and store in variables `images` and `labels`
-images = None
-labels = None
+    model.set_weights(weights)
 
-model.compile(optimizer='adam',
-              loss='categorical_crossentropy',
-              metrics=['accuracy'])
+    images, labels = read_cifar(images_recieve_pipe)
 
-model.fit(images, labels, epochs=1)
+    model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
 
-weights = model.get_weights()
+    model.fit(images, labels, epochs=1)
 
-# TODO: send weights through pipe to the C program
+    weights = model.get_weights()
 
-# first_layer_weights = model.layers[0].get_weights()[0]
-# first_layer_biases  = model.layers[0].get_weights()[1]
-# second_layer_weights = model.layers[1].get_weights()[0]
-# second_layer_biases  = model.layers[1].get_weights()[1]
+    write_weights(weights_send_pipe, weights)
