@@ -37,47 +37,68 @@ void read_cifar10(char *filename, cifar10 *data) {
     fclose(file);
 }
 
+void child_process(cifar10* data , int* stoppage , int classes){
+	int class1 = classes*2;
+	int class2 = class1 + 1;
+       		// Child process
+		// TODO: Read data from shared memory, perform computation, write results back to shared memory
+        printf("I child %d and I have access to data\n", getpid());
+	printf("data[0].label = %d\n",data[0].label);
+	printf("believe me now ? \n");
+ 	printf("sizeof each cifar10 object is %ld\n",sizeof(cifar10));
+//	while (!(*stoppage)){
+		// TODO: Send weights and data to a python process and get back results
+//	}
+}
+
 int main() {
+    int shm_stoppage = shmget(IPC_PRIVATE, sizeof(int), IPC_CREAT | 0666);
+    if (shm_stoppage < 0){
+	perror("stoppage couldn't be shared");
+	return 1;
+    }
     int shmid = shmget(IPC_PRIVATE, NUM_IMAGES_PER_FILE * sizeof(cifar10), IPC_CREAT | 0666);
     if (shmid < 0) {
-        perror("shmget");
+        perror("data couldn't be shared");
         return 1;
     }
-
+	
+    int* stoppage = shmat(shm_stoppage,NULL, 0);
+    if (stoppage == (int*) -1){
+	perror("stoppage is not shared");
+	return 1;
+    }
     cifar10 *data = shmat(shmid, NULL, 0);
     if (data == (cifar10 *) -1) {
-        perror("shmat");
+        perror("data is not shared");
         return 1;
     }
+    printf("initializing stoppage condition to 0");
+    *stoppage = 0;
     printf("starting to read batch 1...\n");
     read_cifar10("data_batch_1.bin", data);
     printf("batch 1 reading done\n");
     printf("sizeof(data) = %ld MB\n", sizeof(cifar10)*NUM_IMAGES_PER_FILE / (1024*1024));
-
-    pid_t pid = fork();
-    if (pid < 0) {
-        perror("fork");
-        return 1;
+    
+    for (int kid=0; kid<5; kid++){
+	    pid_t pid = fork();
+	    if (pid < 0){
+		    perror("fork failed");
+		    return 1;
+	    }
+	    if (pid==0){
+		    // child process
+		    child_process(data,stoppage,kid);
+		    exit(0);
+	    }
     }
 
-    if (pid == 0) {
-        // Child process
-        // TODO: Read data from shared memory, perform computation, write results back to shared memory
-        printf("I am a child and I have access to data\n");
-	printf("data[0].label = %d\n",data[0].label);
-	printf("believe me now ? \n");
-    	printf("sizeof each cifar10 object is %ld\n",sizeof(cifar10));
-    } else {
-        // Parent process
-	printf("I am a parent process and i'll be aggregating data from my childs\n");
-        wait(NULL);  // Wait for child process to finish
-        // TODO: Read results from shared memory, aggregate them
-    }
-
-    if (shmdt(data) == -1) {
-        perror("shmdt");
-        return 1;
-    }
-
+    // parent 
+    
+    	if (shmdt(data) == -1) {
+        	perror("shmdt");
+        	return 1;
+   	 }
+  //  }
     return 0;
 }
