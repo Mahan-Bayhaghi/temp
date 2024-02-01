@@ -6,7 +6,7 @@
 #include <stdlib.h>
 
 #define NUM_CLASSES 10
-#define NUM_IMAGES_PER_FILE 200
+#define NUM_IMAGES_PER_FILE 10000
 #define IMAGE_DIMENSION 32
 
 typedef struct {
@@ -52,6 +52,7 @@ int main() {
     printf("starting to read batch 1...\n");
     read_cifar10("data_batch_1.bin", data);
     printf("batch 1 reading done\n");
+    printf("sizeof(data) = %ld MB\n", sizeof(cifar10)*NUM_IMAGES_PER_FILE / (1024*1024));
 
     pid_t pid = fork();
     if (pid < 0) {
@@ -65,6 +66,7 @@ int main() {
         printf("I am a child and I have access to data\n");
 	printf("data[0].label = %d\n",data[0].label);
 	printf("believe me now ? \n");
+    	printf("sizeof each cifar10 object is %ld\n",sizeof(cifar10));
     } else {
         // Parent process
 	printf("I am a parent process and i'll be aggregating data from my childs\n");
