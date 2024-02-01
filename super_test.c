@@ -123,8 +123,8 @@ int main() {
 
     // Read all batches of CIFAR-10 data
     for (int batch = 1; batch <= NUM_BATCHES; batch++) {
-        char filename[20];
-        sprintf(filename, "data_batch_%d.bin", batch);
+        char filename[60];
+        sprintf(filename, "../cifar-10-batches-bin/data_batch_%d.bin", batch);
         printf("starting to read batch %d...\n", batch);
         read_cifar10(filename, data + (batch - 1) * NUM_IMAGES_PER_FILE);
         printf("batch %d reading done\n", batch);
@@ -156,4 +156,6 @@ int main() {
     // Cleanup shared memory
     if (shmdt(data) == -1) {
         perror("shmdt");
-        return 1
+        return 1;
+    }
+}
