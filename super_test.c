@@ -52,7 +52,7 @@ typedef struct {
 // Define the total number of weights
 #define TOTAL_WEIGHTS (DIM1 * DIM2 * DIM3 * DIM4 + DIM5 + DIM6 * DIM7 * DIM8 * DIM9 + DIM10 + DIM11 * DIM12 * DIM13 * DIM14 + DIM15 + DIM16 * DIM17 + DIM18)
 typedef struct {
-    float weight[TOTAL_WEIGHTS];
+    float weights[TOTAL_WEIGHTS];
 } Weights;
 
 void read_cifar10(char *filename, cifar10 *data) {
