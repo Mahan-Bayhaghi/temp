@@ -9,6 +9,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 #include <stdlib.h>
+#include <stdbool.h>
 
 #define NUM_CLASSES 10
 #define NUM_IMAGES_PER_FILE 10000
@@ -45,11 +46,26 @@ void read_cifar10(char *filename, cifar10 *data) {
     fclose(file);
 }
 
-void child_process(cifar10* data , int* stoppage , int classes){
-    int class1 = classes*2;
+void child_process(cifar10* data, int* stoppage, int classes) {
+    int class1 = classes * 2;
     int class2 = class1 + 1;
     printf("I'm child %d and I have access to data\n", getpid());
 
+    // Filter and save instances with labels class1 or class2
+    cifar10* filtered_data = malloc(NUM_IMAGES_PER_FILE * sizeof(cifar10));
+    if (filtered_data == NULL) {
+        perror("Memory allocation failed");
+        exit(EXIT_FAILURE);
+    }
+    int filtered_count = 0;
+    for (int i = 0; i < NUM_IMAGES_PER_FILE; i++) {
+        if (data[i].label == class1 || data[i].label == class2) {
+            memcpy(&filtered_data[filtered_count], &data[i], sizeof(cifar10));
+            filtered_count++;
+        }
+    }
+
+    // Create named pipes (FIFOs)
     char weight_send_fifo[20];
     sprintf(weight_send_fifo, "/tmp/wsfifo%d", classes);
     mkfifo(weight_send_fifo, 0777);
@@ -65,33 +81,49 @@ void child_process(cifar10* data , int* stoppage , int classes){
     mkfifo(image_send_fifo, 0777);
     printf("image_send_fifo is made\n");
 
+    // Open pipes for writing
     int fd1 = open(weight_send_fifo, O_WRONLY);
     if (fd1 == -1) {
         perror("Error opening the FIFO for writing weight");
         exit(EXIT_FAILURE);
     }
-    // TODO: send weights
 
     int fd2 = open(image_send_fifo, O_WRONLY);
     if (fd2 == -1) {
         perror("Error opening the FIFO for writing images");
         exit(EXIT_FAILURE);
     }
-    // Send CIFAR-10 instances to the Python script
-    write(fd2, data, sizeof(cifar10) * NUM_IMAGES_PER_FILE);
-    // Close the named pipes
-    close(fd1);
-    close(fd2);
 
+    // Open pipe for reading
     int fd3 = open(weight_receive_fifo, O_RDONLY);
     if (fd3 == -1) {
         perror("Error opening the FIFO for receiving updated weights");
         exit(EXIT_FAILURE);
     }
-    // TODO: receive data and aggregate weights. Also, check if we should stop or not 
 
-    // Close the named pipe
+    // Main training loop of each child process
+    while (*stoppage == 0 && filtered_count > 0) {
+        // TODO: Send weights (implementation depends on your specific requirements)
+
+        // Send 16 instances of CIFAR-10 to the Python script
+        int instances_to_send = (filtered_count >= 16) ? 16 : filtered_count;
+        write(fd2, &filtered_data[filtered_count - instances_to_send], sizeof(cifar10) * instances_to_send);
+
+        // Wait for updated weights
+        // TODO: Receive data and aggregate weights. Also, check if we should stop or not
+
+        // Update stoppage condition or decrement filtered_count based on your logic
+        // *stoppage = ...; // Update stoppage condition
+        // filtered_count -= instances_to_send; // Decrement if needed
+    }
+
+    // Close the named pipes
+    close(fd1);
+    close(fd2);
     close(fd3);
+
+    // Free allocated memory for filtered_data
+    free(filtered_data);
 }
 
 int main() {
