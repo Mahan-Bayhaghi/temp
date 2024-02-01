@@ -17,7 +17,7 @@
 #define NUM_BATCHES 5
 #define IMAGE_DIMENSION 32
 
-#define NUM_PROCESSES 1
+#define NUM_PROCESSES 5
 
 #define MAX 10 
 

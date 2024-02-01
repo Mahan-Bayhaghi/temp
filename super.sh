@@ -1,2 +1,2 @@
-gcc super_test.c -o super
+gcc super_test.c -o super -lm
 ./super
